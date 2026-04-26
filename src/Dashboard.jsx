@@ -3,6 +3,7 @@ import { APIProvider, Map, AdvancedMarker, Pin } from "@vis.gl/react-google-maps
 import { listenEmergencies, listenCamps, listenDistressSignals } from "./db";
 import { auth } from "./firebase";
 import { signOut } from "firebase/auth";
+import { matchVolunteers } from './services/aiService';
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -23,6 +24,8 @@ export default function Dashboard({ user, centroids = [] }) {
   const [distress,    setDistress]    = useState([]);
   const [selected,    setSelected]    = useState(null);
   const [activeTab,   setActiveTab]   = useState("all");
+  const [aiMatchResult, setAiMatchResult] = useState(null);
+const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     const u1 = listenEmergencies(setEmergencies);
@@ -32,6 +35,21 @@ export default function Dashboard({ user, centroids = [] }) {
   }, []);
 
   const handleSignOut = () => signOut(auth);
+  const handleRunMatching = async (emergency) => {
+  setAiLoading(true);
+  setAiMatchResult(null);
+  
+  // Note: Replace dummyVolunteers with a real query to your 'volunteers' collection if you have one.
+  const dummyVolunteers = [
+    { name: "Riya", skills: ["medical", "transport"], location: {lat: 19.07, lng: 72.87} },
+    { name: "Smit", skills: ["rescue", "food"], location: {lat: 19.10, lng: 72.85} },
+    { name: "Aarav", skills: ["medical", "first-aid"], location: {lat: 19.05, lng: 72.89} }
+  ];
+
+  const result = await matchVolunteers(emergency, dummyVolunteers);
+  setAiMatchResult(result);
+  setAiLoading(false);
+};
 
   return (
     <div style={{
@@ -289,8 +307,8 @@ export default function Dashboard({ user, centroids = [] }) {
                   }}
                 >×</button>
               </div>
-
-              {selected.type === "emergency" && (
+{/* 
+              { {selected.type === "emergency" && (
                 <>
                   <p style={{ fontWeight: 600, marginBottom: 4 }}>{selected.data.title}</p>
                   <p style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>{selected.data.description}</p>
@@ -303,8 +321,52 @@ export default function Dashboard({ user, centroids = [] }) {
                     ))}
                   </div>
                 </>
-              )}
+               )} } */}
+{selected.type === "emergency" && (
+  <>
+    <p style={{ fontWeight: 600, marginBottom: 4 }}>{selected.data.title}</p>
+    <p style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>{selected.data.description}</p>
+    
+    {/* --- AI MATCHING BUTTON --- */}
+    <button 
+      onClick={() => handleRunMatching(selected.data)}
+      disabled={aiLoading}
+      style={{
+        background: aiLoading ? "#ccc" : "#ef4444", color: "white",
+        border: "none", padding: "8px 12px", borderRadius: 6,
+        fontSize: 12, cursor: "pointer", marginBottom: 12, width: "100%"
+      }}
+    >
+      {aiLoading ? "AI is analyzing..." : "Match Volunteers with AI"}
+    </button>
 
+    {/* --- AI RESULTS PANEL --- */}
+    {aiMatchResult && (
+      <div style={{ background: "#f1f5f9", padding: 10, borderRadius: 8, fontSize: 12, marginBottom: 12 }}>
+        <h4 style={{ margin: "0 0 5px 0", color: "#ef4444" }}>AI Reasoning</h4>
+        <p style={{ margin: "0 0 10px 0", fontStyle: "italic" }}>{aiMatchResult.overallStrategy}</p>
+        <ul style={{ paddingLeft: 15, margin: 0 }}>
+          {aiMatchResult.matches.map((m, i) => (
+            <li key={i} style={{ marginBottom: 4 }}>
+              <strong>{m.name}</strong>: {m.reasoning} 
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {selected.data.requiredSkills.map(s => (
+        <span key={s} style={{
+          fontSize: 11, padding: "2px 8px", borderRadius: 10,
+          background: "#fef2f2", color: "#ef4444"
+        }}>{s}</span>
+      ))}
+    </div>
+  </>
+)}
+
+ 
               {selected.type === "camp" && (
                 <>
                   <p style={{ fontWeight: 600, marginBottom: 4 }}>{selected.data.name}</p>
