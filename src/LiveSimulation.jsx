@@ -4,41 +4,40 @@ import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, li
 
 export default function LiveSimulation() {
   useEffect(() => {
-    // 1 & 3: STREAM MICRO-DONATIONS (Continuous loop for demo)
+    // 1 & 3: STREAM MICRO-DONATIONS (Continuous during demo)
     const donationInterval = setInterval(async () => {
-      // Logic for Normal vs Anomalous amounts
-      const isAnomalous = Math.random() > 0.85; 
+      const isAnomalous = Math.random() > 0.85; // 15% suspicious activity
       
       await addDoc(collection(db, "donations"), {
-        amount: isAnomalous ? Math.floor(Math.random() * 50000) + 60000 : Math.floor(Math.random() * 800) + 50,
-        userId: isAnomalous ? "suspicious_node_404" : `donor_${Math.floor(Math.random() * 1000)}`,
+        amount: isAnomalous ? Math.floor(Math.random() * 50000) + 60000 : Math.floor(Math.random() * 500) + 10,
+        userId: isAnomalous ? "attacker_node_04" : `donor_${Math.floor(Math.random() * 100)}`,
         timestamp: serverTimestamp(),
-        status: "pending", // R's Gateway will process this
+        status: "pending", // R will monitor this
         type: isAnomalous ? "anomalous" : "normal"
       });
-    }, 3500);
+    }, 3000);
 
-    // 2 & 4: INJECT ESCALATING DISASTER METRICS
-    const metricsInterval = setInterval(async () => {
+    // 2 & 4: INJECT ESCALATING & DYNAMIC DISASTER METRICS
+    const severityInterval = setInterval(async () => {
       const q = query(collection(db, "emergencies"), limit(1));
       const snap = await getDocs(q);
       
       if (!snap.empty) {
         const emergencyDoc = snap.docs[0];
-        const currentData = emergencyDoc.data();
+        // Dynamic metric injection: random increase in affected people
+        const escalation = Math.floor(Math.random() * 40) + 10;
         
-        // Escalation logic: increasing affected count and setting status to high
         await updateDoc(doc(db, "emergencies", emergencyDoc.id), {
-          affectedCount: (currentData.affectedCount || 0) + Math.floor(Math.random() * 30),
-          severity: "high", // Escalates severity
-          lastEscalation: serverTimestamp()
+          severity: "high", // Escalating severity
+          affectedCount: (emergencyDoc.data().affectedCount || 0) + escalation,
+          lastEscalated: serverTimestamp()
         });
       }
     }, 12000);
 
     return () => {
       clearInterval(donationInterval);
-      clearInterval(metricsInterval);
+      clearInterval(severityInterval);
     };
   }, []);
 
