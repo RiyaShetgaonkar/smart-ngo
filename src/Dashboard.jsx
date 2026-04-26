@@ -548,3 +548,26 @@ function LegendItem({ color, label }) {
     </div>
   );
 }}
+// Inside Dashboard.jsx, add a listener for the 'donations' collection
+const [liveDonations, setLiveDonations] = useState([]);
+
+useEffect(() => {
+  const q = query(collection(db, "donations"), orderBy("timestamp", "desc"), limit(10));
+  const unsub = onSnapshot(q, (snap) => {
+    setLiveDonations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  });
+  return () => unsub();
+}, []);
+
+// In your Sidebar JSX:
+<div className="donation-feed">
+  {liveDonations.map(d => (
+    <div key={d.id} style={{ 
+      color: d.status === 'blocked' ? '#ef4444' : '#22c55e',
+      fontWeight: d.status === 'blocked' ? 'bold' : 'normal',
+      animation: d.status === 'blocked' ? 'pulse 1s infinite' : 'none'
+    }}>
+      {d.status === 'blocked' ? '⚠️ BLOCKED: ' : '💰 '} ₹{d.amount} - {d.userId}
+    </div>
+  ))}
+</div>
