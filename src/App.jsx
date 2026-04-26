@@ -4,6 +4,8 @@ import { auth } from "./firebase";
 import Login from "./Login";
 import Dashboard from "./Dashboard";
 import KMeans from "./KMeans";
+import LiveSimulation from './LiveSimulation';
+import FraudDetector from './FraudDetector';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -24,6 +26,11 @@ export default function App() {
 
   return (
     <>
+      
+      <LiveSimulation />
+      <FraudDetector />
+      {/* Your existing Auth/Dashboard logic */}
+  
       <button
         onClick={() => setShowKMeans(!showKMeans)}
         style={{
