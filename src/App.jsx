@@ -26,11 +26,11 @@ export default function App() {
 
   return (
     <>
-      
+      {/* SHA & R - Background Processors */}
       <LiveSimulation />
       <FraudDetector />
-      {/* Your existing Auth/Dashboard logic */}
   
+      {/* Floating K-Means Trigger */}
       <button
         onClick={() => setShowKMeans(!showKMeans)}
         style={{
@@ -59,6 +59,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Main UI */}
       <Dashboard user={user} centroids={centroids} />
     </>
   );
