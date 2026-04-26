@@ -1,25 +1,23 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { db } from './firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function FraudDetector() {
   useEffect(() => {
     const q = query(collection(db, "donations"), where("status", "==", "pending"));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach(async (change) => {
-        if (change.type === "added") {
-          const donation = change.doc.data();
-          const status = donation.amount > 50000 ? "blocked" : "verified";
-          
-          [span_4](start_span)// Update the document status in real-time[span_4](end_span)
-          await updateDoc(doc(db, "donations", change.doc.id), { status });
+    const unsub = onSnapshot(q, (snap) => {
+      snap.forEach(async (change) => {
+        const data = change.data();
+        if (data.amount > 50000) {
+          await updateDoc(doc(db, "donations", change.id), { status: "blocked" });
+          await addDoc(collection(db, "flagged_donations"), { ...data, flaggedAt: serverTimestamp() });
+          console.log("R: Blocked Fraud!");
+        } else {
+          await updateDoc(doc(db, "donations", change.id), { status: "verified" });
         }
       });
     });
-
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
-
   return null;
 }
