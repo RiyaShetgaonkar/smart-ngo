@@ -75,3 +75,10 @@ export async function matchVolunteers(emergency, volunteers) {
     return null;
   }
 }
+
+export const forecastShortages = async (emergencyData) => {
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  const prompt = `Based on a ${emergencyData.severity} level disaster in ${emergencyData.location}, predict 3 critical supplies that will run out in 24 hours.`;
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+};
