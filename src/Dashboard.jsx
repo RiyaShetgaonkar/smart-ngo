@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { APIProvider, Map, AdvancedMarker, Pin } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, AdvancedMarker, Pin, Polyline } from "@vis.gl/react-google-maps";
 import { listenEmergencies, listenCamps, listenDistressSignals } from "./db";
 import { auth } from "./firebase";
 import { signOut } from "firebase/auth";
 import { matchVolunteers } from './services/aiService';
+import { AStar } from './utils/astar'; // Ensure this matches your file structure
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -25,8 +26,8 @@ export default function Dashboard({ user, centroids = [] }) {
   const [selected,    setSelected]    = useState(null);
   const [activeTab,   setActiveTab]   = useState("all");
   const [aiMatchResult, setAiMatchResult] = useState(null);
-const [aiLoading, setAiLoading] = useState(false);
-
+  const [aiLoading, setAiLoading] = useState(false);
+  const [route, setRoute] = useState(null); // Stores the A* path coordinates added new
   useEffect(() => {
     const u1 = listenEmergencies(setEmergencies);
     const u2 = listenCamps(setCamps);
@@ -38,6 +39,7 @@ const [aiLoading, setAiLoading] = useState(false);
   const handleRunMatching = async (emergency) => {
   setAiLoading(true);
   setAiMatchResult(null);
+  setRoute(null); // Reset route when running new match
   
   // Note: Replace dummyVolunteers with a real query to your 'volunteers' collection if you have one.
   const dummyVolunteers = [
@@ -49,8 +51,42 @@ const [aiLoading, setAiLoading] = useState(false);
   const result = await matchVolunteers(emergency, dummyVolunteers);
   setAiMatchResult(result);
   setAiLoading(false);
+
+   if (result && result.matches.length > 0) {
+    const vol = dummyVolunteers[0];
+    calculateRoute(
+      vol.location.lat,
+      vol.location.lng,
+      emergency.lat,
+      emergency.lng
+    );
+  }
 };
 
+
+
+  const calculateRoute = (startLat, startLng, endLat, endLng) => {
+    const solver = new AStar(20);
+    const startGrid = [0, 0]; 
+    const endGrid = [19, 19];
+    const obstacles = [[10, 10], [10, 11], [10, 12], [9, 10], [11, 10]]; 
+   
+    
+    const path = solver.findPath(startGrid, endGrid, obstacles);
+ 
+
+    if (path) {
+      const latLngPath = path.map(p => ({ 
+       /* lat: startLat + (p[0] * 0.001), 
+        lng: startLng + (p[1] * 0.001) */
+        lat: startLat + (p[0] / 19) * (endLat - startLat), 
+        lng: startLng + (p[1] / 19) * (endLng - startLng)
+      }));
+      // Paste this inside calculateRoute, right before setRoute(latLngPath)
+console.log("Calculated Path (First 3 coords):", latLngPath.slice(0, 3));
+      setRoute(latLngPath);
+    }
+  };
   return (
     <div style={{
       display: "flex", flexDirection: "column",
@@ -273,6 +309,14 @@ const [aiLoading, setAiLoading] = useState(false);
                   </div>
                 </AdvancedMarker>
               ))}
+              {route && (
+    <Polyline
+      path={route}
+      strokeColor="#ef4444"
+      strokeOpacity={0.8}
+      strokeWeight={5}
+    />
+  )}
 
             </Map>
           </APIProvider>
@@ -436,7 +480,7 @@ const [aiLoading, setAiLoading] = useState(false);
       </div>
     </div>
   );
-}
+
 
 function Stat({ label, value, color }) {
   return (
@@ -503,4 +547,4 @@ function LegendItem({ color, label }) {
       <span style={{ color: "#64748b" }}>{label}</span>
     </div>
   );
-}
+}}
