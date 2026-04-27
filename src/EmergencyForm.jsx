@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { addEmergency } from "./db";
 import { auth } from "./firebase";
 

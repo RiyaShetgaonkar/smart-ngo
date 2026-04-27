@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'; // Added React import for safety
+import { useEffect } from 'react'; // Added React import for safety
 import { db } from './firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 

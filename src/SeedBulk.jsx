@@ -1,5 +1,4 @@
 import { addDistressSignal } from "./db";
-import { auth } from "./firebase";
 import { useState } from "react";
 
 // ── Indian name pools (all religions) ─────────────────────────────────────
