@@ -107,3 +107,45 @@ export const listenDistressSignals = (callback) =>
 
 export const resolveDistressSignal = (id) =>
   updateDoc(doc(db, "distress_signals", id), { resolved: true });
+
+// ── VOLUNTEERS ─────────────────────────────────────────────────────────────
+
+export const volunteersCol = collection(db, "volunteers");
+
+export const addVolunteer = (data) =>
+  addDoc(volunteersCol, {
+    name:       data.name,
+    skills:     data.skills,     // ["medical", "rescue", "food", etc]
+    lat:        data.lat,
+    lng:        data.lng,
+    status:     "available",     // "available" | "dispatched"
+    createdAt:  serverTimestamp(),
+  });
+
+export const listenVolunteers = (callback) =>
+  onSnapshot(
+    query(volunteersCol, where("status", "==", "available")),
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+  );
+
+export const updateVolunteer = (id, data) =>
+  updateDoc(doc(db, "volunteers", id), data);
+
+// ── AI MATCHES ─────────────────────────────────────────────────────────────
+
+export const saveAiMatch = (emergencyId, matches) =>
+  addDoc(collection(db, "ai_matches"), {
+    emergencyId,
+    matches,
+    createdAt: serverTimestamp(),
+  });
+
+export const listenAiMatches = (emergencyId, callback) =>
+  onSnapshot(
+    query(
+      collection(db, "ai_matches"),
+      where("emergencyId", "==", emergencyId),
+      orderBy("createdAt", "desc")
+    ),
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+  );
