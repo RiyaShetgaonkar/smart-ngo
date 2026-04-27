@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
-import Login from "./Login";
+// 1. CHANGE THIS: Import AuthPage instead of Login
+import AuthPage from "./AuthPage"; 
 import Dashboard from "./Dashboard";
 import KMeans from "./KMeans";
 import LiveSimulation from './LiveSimulation';
@@ -21,8 +22,16 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  if (loading) return <p style={{ padding: 24 }}>Loading...</p>;
-  if (!user) return <Login />;
+  // 2. POLISH: Standardize the loading state font
+  if (loading) return (
+    <div style={{ padding: 24, fontFamily: "serif", background: "#f8fafc", height: "100vh" }}>
+      <p>Initializing NGO Systems...</p>
+      <div className="skeleton" style={{ width: 150, height: 10, borderRadius: 5 }}></div>
+    </div>
+  );
+
+  // 3. CHANGE THIS: Use AuthPage for signed-out users
+  if (!user) return <AuthPage />;
 
   return (
     <>
@@ -39,7 +48,8 @@ export default function App() {
           background: "#ef4444", color: "#fff",
           border: "none", cursor: "pointer",
           fontWeight: 500, fontSize: 13,
-          boxShadow: "0 4px 12px rgba(239,68,68,0.4)"
+          boxShadow: "0 4px 12px rgba(239,68,68,0.4)",
+          fontFamily: "serif" // 4. FONT MATCH
         }}
       >
         {showKMeans ? "Close" : "Run K-Means"}
