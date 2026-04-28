@@ -45,8 +45,11 @@ export const forecastShortages = async (emergencyData) => {
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
   
   const prompt = `
-    Based on a ${emergencyData.severity} level disaster with ${emergencyData.affectedCount} people affected, 
-    predict 3 critical supply shortages. Be specific. Under 30 words.
+    Based on a ${emergencyData.severity} level disaster called "${emergencyData.title}" 
+    with ${emergencyData.affectedCount || 100} people affected, 
+    predict 3 critical supply shortages with specific quantities needed. 
+    Be specific and urgent. Under 40 words.
+    Example format: "500 medical kits, 200L clean water, 30 rescue workers needed immediately."
   `;
 
   try {

@@ -4,9 +4,10 @@ import { listenEmergencies, listenCamps, listenDistressSignals, listenVolunteers
 import { auth, db } from "./firebase";
 import { signOut } from "firebase/auth";
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { matchVolunteers } from './services/aiService';
+import { matchVolunteers, forecastShortages } from './services/aiService';
 import { AStar } from './utils/astar'; 
 import EmergencyForm from "./EmergencyForm";
+
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const SEVERITY_COLOR = { high: "#ef4444", medium: "#f59e0b", low: "#22c55e" };
@@ -21,7 +22,7 @@ export default function Dashboard({ user }) {
   const [aiMatchResult, setAiMatchResult] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [route, setRoute] = useState(null); 
-  const [forecast] = useState(null);
+    const [forecast, setForecast] = useState(null);
   const [liveDonations, setLiveDonations] = useState([]);
   const [volunteers, setVolunteers] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -74,6 +75,11 @@ export default function Dashboard({ user }) {
       }
     }
   };
+  const handleForecast = async (emergency) => {
+  setForecast("Analyzing disaster metrics...");
+  const prediction = await forecastShortages(emergency);
+  setForecast(prediction);
+};
 
   if (!user) return null;
 
@@ -151,11 +157,22 @@ export default function Dashboard({ user }) {
 
               <h4 style={{ margin: "0 0 12px 0", color: "var(--text-h)", fontFamily: GLOBAL_FONT }}>{selected.data.title}</h4>
               
-              {selected.type === "emergency" && !aiMatchResult && !aiLoading && (
-                <button onClick={() => handleRunMatching(selected.data)} style={{ background: "#ef4444", color: "#fff", border: "none", padding: "10px", width: "100%", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontFamily: GLOBAL_FONT }}>
-                  🚀 Run AI Match
-                </button>
-              )}
+            {selected.type === "emergency" && !aiMatchResult && !aiLoading && (
+  <>
+    <button 
+      onClick={() => handleRunMatching(selected.data)} 
+      style={{ background: "#ef4444", color: "#fff", border: "none", padding: "10px", width: "100%", borderRadius: 8, fontWeight: 600, cursor: "pointer", marginBottom: 6 }}
+    >
+      🚀 Run AI Match
+    </button>
+    <button
+      onClick={() => handleForecast(selected.data)}
+      style={{ background: "#f59e0b", color: "#fff", border: "none", padding: 8, width: "100%", borderRadius: 6 }}
+    >
+      ⚠️ Predict Supply Shortage
+    </button>
+  </>
+)}
 
               {aiLoading && <div className="skeleton" style={{ height: 120, borderRadius: 8 }}></div>}
 
@@ -173,9 +190,20 @@ export default function Dashboard({ user }) {
                   </p>
                 </div>
               )}
-            </div>
-          )}
+                 {/* ADD HERE 👇 */}
+              {forecast && (
+                <div style={{ background: '#fff7ed', border: '2px dashed #f59e0b', padding: '10px', marginTop: '10px', borderRadius: 8 }}>
+                  <strong style={{ color: '#ea580c', fontSize: '11px' }}>⚠️  PREDICTIVE ALERT:</strong>
+                  <p style={{ fontSize: '11px', margin: '4px 0 0 0', fontFamily: GLOBAL_FONT }}>
+                    {forecast === "Analyzing disaster metrics..." ? "🔄 Analyzing disaster metrics..." : forecast}
+                  </p>
+                </div>
+              )}
+
+          </div> 
+          )}      
         </div>
+        
       </div>
 
       {showForm && <EmergencyForm onClose={() => setShowForm(false)} />}
