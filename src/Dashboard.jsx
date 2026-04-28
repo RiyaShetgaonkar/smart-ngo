@@ -96,6 +96,19 @@ export default function Dashboard({ user }) {
     setAiMatchResult(result);
     setAiLoading(false);
 
+
+
+    if (result && result.matches.length > 0) {
+    await saveAiMatch(emergency.id, result.matches);
+
+    // Draw route from top AI-matched volunteer ← ADD THIS BACK
+    const topMatchName = result.matches[0].name;
+    const topVolunteer = volunteers.find(v => v.name === topMatchName);
+    if (topVolunteer) {
+      calculateRoute(topVolunteer.lat, topVolunteer.lng, emergency.lat, emergency.lng);
+    }
+  }
+
     // DEMO LOGIC: Use the volunteer from this specific session
     if (currentSessionVolunteer) {
       calculateRoute(currentSessionVolunteer.lat, currentSessionVolunteer.lng, emergency.lat, emergency.lng);
@@ -201,6 +214,24 @@ export default function Dashboard({ user }) {
                   <Pin background={SEVERITY_COLOR[e.severity]} glyph="!" />
                 </AdvancedMarker>
               ))}
+
+
+              {/* ADD THIS BACK */}
+  {volunteers.map((v, i) => (
+    <AdvancedMarker key={`vol-${i}`} position={{ lat: v.lat, lng: v.lng }}>
+      <div style={{
+        background: aiMatchResult?.matches?.[0]?.name === v.name ? "#16a34a" : "#1e40af",
+        color: "#fff", padding: "4px 10px", borderRadius: 20,
+        fontSize: 11, fontWeight: 600, fontFamily: GLOBAL_FONT
+      }}>
+        👤 {v.name}
+      </div>
+    </AdvancedMarker>
+  ))}
+
+
+
+
               {route && <Polyline path={route} strokeColor="#ef4444" strokeWeight={5} />}
             </Map>
           </APIProvider>
