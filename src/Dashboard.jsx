@@ -56,7 +56,7 @@ export default function Dashboard({ user }) {
     setRoute(null);
   };
 
-  const calculateRoute = (startLat, startLng, endLat, endLng) => {
+ /* const calculateRoute = (startLat, startLng, endLat, endLng) => {
     const solver = new AStar(20);
     const path = solver.findPath([0, 0], [19, 19], [[10, 10]]);
     if (path) {
@@ -66,7 +66,13 @@ export default function Dashboard({ user }) {
       }));
       setRoute(latLngPath);
     }
-  };
+  };*/
+  const calculateRoute = (startLat, startLng, endLat, endLng) => {
+  setRoute([
+    { lat: startLat, lng: startLng },
+    { lat: endLat, lng: endLng }
+  ]);
+};
 
   const triggerVolunteerAlert = async (alertData) => {
     const sheetBestUrl = import.meta.env.VITE_SHEET_BEST_URL;
@@ -89,43 +95,58 @@ export default function Dashboard({ user }) {
     }
   };
 
+
   const handleRunMatching = async (emergency) => {
-    setAiLoading(true);
-    setAiMatchResult(null);
-    const result = await matchVolunteers(emergency, volunteers);
-    setAiMatchResult(result);
-    setAiLoading(false);
+  setAiLoading(true);
+  setAiMatchResult(null);
+  const result = await matchVolunteers(emergency, volunteers);
+  setAiMatchResult(result);
+  setAiLoading(false);
 
-
-
-    if (result && result.matches.length > 0) {
-    await saveAiMatch(emergency.id, result.matches);
-
-    // Draw route from top AI-matched volunteer ← ADD THIS BACK
+  if (result && result.matches.length > 0) {
+    // Route FIRST before any Firestore calls
     const topMatchName = result.matches[0].name;
     const topVolunteer = volunteers.find(v => v.name === topMatchName);
+    
+    console.log("Top match name:", topMatchName);
+    console.log("All volunteers:", volunteers);
+    console.log("Found volunteer:", topVolunteer);
+    console.log("Emergency coords:", emergency.lat, emergency.lng);
+
     if (topVolunteer) {
       calculateRoute(topVolunteer.lat, topVolunteer.lng, emergency.lat, emergency.lng);
     }
+
+    // Firestore save separately so failure doesn't block route
+    try {
+      await saveAiMatch(emergency.id, result.matches);
+    } catch (err) {
+      console.warn("Could not save match:", err.message);
+    }
   }
 
-    // DEMO LOGIC: Use the volunteer from this specific session
-    if (currentSessionVolunteer) {
-      calculateRoute(currentSessionVolunteer.lat, currentSessionVolunteer.lng, emergency.lat, emergency.lng);
-
+  // DEMO LOGIC: email alert only, no route override
+  if (currentSessionVolunteer) {
+    try {
       await triggerVolunteerAlert({
         emergencyId: emergency.id,
         title: emergency.title,
         message: `DISPATCH ALERT: Incident response assigned to ${currentSessionVolunteer.name}`,
-        volunteerEmail: currentSessionVolunteer.email 
+        volunteerEmail: currentSessionVolunteer.email,
       });
-
-      // Show the Gmail system is working
       const subject = encodeURIComponent(`URGENT: Smart-NGO Dispatch - ${emergency.title}`);
       const body = encodeURIComponent(`Hello ${currentSessionVolunteer.name},\n\nYou have been matched for the incident: ${emergency.title}.`);
       window.open(`mailto:${currentSessionVolunteer.email}?subject=${subject}&body=${body}`);
+    } catch (err) {
+      console.warn("Alert failed:", err.message);
     }
-  };
+  }
+};
+
+
+    
+
+     
 
   const handleForecast = async (emergency) => {
     setForecast("Analyzing disaster metrics...");
