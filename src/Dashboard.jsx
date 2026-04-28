@@ -121,7 +121,7 @@ export default function Dashboard({ user }) {
         </div>
 
         <div style={{ flex: 1, position: "relative" }}>
-          <APIProvider apiKey={MAPS_KEY}>
+           <APIProvider apiKey={MAPS_KEY}> 
             <Map defaultCenter={{ lat: 19.0760, lng: 72.8777 }} defaultZoom={10} mapId="ngo-map">
               {emergencies.map(e => (
                 <AdvancedMarker key={e.id} position={{ lat: e.lat, lng: e.lng }} onClick={() => handleSelectEmergency(e)}>
@@ -140,7 +140,8 @@ export default function Dashboard({ user }) {
               ))}
               {route && <Polyline path={route} strokeColor="#ef4444" strokeWeight={5} />}
             </Map>
-          </APIProvider>
+            </APIProvider>
+          
 
           {selected && (
             <div className="fade-in-entry" style={{ 
