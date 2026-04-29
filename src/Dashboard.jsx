@@ -10,6 +10,18 @@ import EmergencyForm from "./EmergencyForm";
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const SEVERITY_COLOR = { high: "#ef4444", medium: "#f59e0b", low: "#22c55e" };
+const SKILL_OPTIONS = [
+  "First Aid & Medical",
+  "Search & Rescue",
+  "Food Distribution",
+  "Shelter Management",
+  "Water & Sanitation",
+  "Logistics & Transport",
+  "Counseling & Mental Health",
+  "Communications",
+];
+
+const LOCATION_OPTIONS = ["Panjim", "Margao", "Mapusa", "Vasco"];
 const LIGHT_CREAM = "#FDFBF7";
 const GLOBAL_FONT = "serif";
 
@@ -27,11 +39,13 @@ export default function Dashboard({ user }) {
   const [showForm, setShowForm] = useState(false);
 
   // Volunteer registration state
-  const [volunteerName, setVolunteerName] = useState("");
-  const [volunteerEmail, setVolunteerEmail] = useState("");
-  const [volunteerSubmitted, setVolunteerSubmitted] = useState(false);
-  const [volunteerError, setVolunteerError] = useState("");
-  const [volunteerLoading, setVolunteerLoading] = useState(false);
+ const [volunteerName, setVolunteerName] = useState("");
+const [volunteerEmail, setVolunteerEmail] = useState("");
+const [volunteerLocation, setVolunteerLocation] = useState("");
+const [volunteerSkills, setVolunteerSkills] = useState([]);
+const [volunteerSubmitted, setVolunteerSubmitted] = useState(false);
+const [volunteerError, setVolunteerError] = useState("");
+const [volunteerLoading, setVolunteerLoading] = useState(false);
 
   // SESSION STATE: Keeps the newly added volunteer active for the demo
   const [currentSessionVolunteer, setCurrentSessionVolunteer] = useState(null);
@@ -126,6 +140,19 @@ export default function Dashboard({ user }) {
   }
 
   // DEMO LOGIC: email alert only, no route override
+  const formVolunteers = volunteers.filter(v => v.registeredViaForm === true);
+  for (const vol of formVolunteers) {
+  try {
+    await triggerVolunteerAlert({
+      emergencyId: emergency.id,
+      title: emergency.title,
+      message: "DISPATCH ALERT: " + vol.name + " matched to incident",
+      volunteerEmail: vol.email,
+    });
+  } catch (err) {
+    console.warn("Alert failed for", vol.name, err.message);
+  }
+}
   if (currentSessionVolunteer) {
     try {
       await triggerVolunteerAlert({
@@ -156,42 +183,64 @@ export default function Dashboard({ user }) {
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const handleVolunteerSubmit = async () => {
-    setVolunteerError("");
-    if (!volunteerName.trim() || !volunteerEmail.trim()) {
-      setVolunteerError("Name and Email required.");
-      return;
-    }
-    if (!isValidEmail(volunteerEmail)) {
-      setVolunteerError("Invalid email format.");
-      return;
-    }
+// Goa location coordinates map
+const GOA_COORDS = {
+  Panjim:  { lat: 15.4989, lng: 73.8278 },
+  Margao:  { lat: 15.2832, lng: 73.9862 },
+  Mapusa:  { lat: 15.5937, lng: 73.8117 },
+  Vasco:   { lat: 15.3982, lng: 73.8113 },
+};
 
-    setVolunteerLoading(true);
-    try {
-      const newVol = {
-        name: volunteerName.trim(),
-        email: volunteerEmail.trim(),
-        lat: 19.0760 + (Math.random() - 0.5) * 0.1,
-        lng: 72.8777 + (Math.random() - 0.5) * 0.1,
-        skills: "General Relief",
-      };
+const handleVolunteerSubmit = async () => {
+  setVolunteerError("");
+  if (!volunteerName.trim() || !volunteerEmail.trim()) {
+    setVolunteerError("Name and Email required.");
+    return;
+  }
+  if (!isValidEmail(volunteerEmail)) {
+    setVolunteerError("Invalid email format.");
+    return;
+  }
+  if (!volunteerLocation) {
+    setVolunteerError("Please select your location.");
+    return;
+  }
+  if (volunteerSkills.length === 0) {
+    setVolunteerError("Please select at least one skill.");
+    return;
+  }
 
-      await addDoc(collection(db, "volunteers"), newVol);
-      setCurrentSessionVolunteer(newVol); // Save to temporary session state
-      setVolunteerLoading(false);
-      setVolunteerSubmitted(true);
-    } catch (error) {
-      setVolunteerError("Database error.");
-      setVolunteerLoading(false);
-    }
-  };
+  setVolunteerLoading(true);
+  try {
+    const coords = GOA_COORDS[volunteerLocation];
+    const newVol = {
+      name:     volunteerName.trim(),
+      email:    volunteerEmail.trim(),
+      location: volunteerLocation,
+      lat:      coords.lat + (Math.random() - 0.5) * 0.01, // slight offset so pins don't stack
+      lng:      coords.lng + (Math.random() - 0.5) * 0.01,
+      skills:   volunteerSkills.join(", "), // stored as comma-separated string for AI matching
+      status:   "available",
+      registeredViaForm: true,   // ← marks this as a dashboard registration
+    };
 
-  const handleVolunteerReset = () => {
-    setVolunteerName("");
-    setVolunteerEmail("");
-    setVolunteerSubmitted(false);
-  };
+    await addDoc(collection(db, "volunteers"), newVol);
+    setCurrentSessionVolunteer(newVol);
+    setVolunteerLoading(false);
+    setVolunteerSubmitted(true);
+  } catch (error) {
+    setVolunteerError("Database error.");
+    setVolunteerLoading(false);
+  }
+};
+
+const handleVolunteerReset = () => {
+  setVolunteerName("");
+  setVolunteerEmail("");
+  setVolunteerLocation("");
+  setVolunteerSkills([]);
+  setVolunteerSubmitted(false);
+};
 
   if (!user) return null;
 
@@ -300,21 +349,90 @@ export default function Dashboard({ user }) {
         {/* Volunteer Registration Column */}
         <div style={{ width: 300, background: LIGHT_CREAM, borderLeft: "1px solid #e2e8f0", overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16, fontFamily: GLOBAL_FONT }}>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Become a Volunteer</h3>
-          {!volunteerSubmitted ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input type="text" placeholder="Full Name" value={volunteerName} onChange={(e) => setVolunteerName(e.target.value)} style={{ width: "100%", padding: 9, borderRadius: 8, border: "1px solid #cbd5e1" }} />
-              <input type="email" placeholder="Email Address" value={volunteerEmail} onChange={(e) => setVolunteerEmail(e.target.value)} style={{ width: "100%", padding: 9, borderRadius: 8, border: "1px solid #cbd5e1" }} />
-              {volunteerError && <div style={{ color: "#ef4444", fontSize: 11 }}>{volunteerError}</div>}
-              <button onClick={handleVolunteerSubmit} disabled={volunteerLoading} style={{ background: "#16a34a", color: "#fff", border: "none", padding: 11, borderRadius: 8, fontWeight: 700, cursor: "pointer" }}>Register</button>
-            </div>
-          ) : (
-            <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10, padding: 18, textAlign: "center" }}>
-              <h4 style={{ color: "#15803d", fontSize: 14, margin: "0 0 10px 0" }}>Session Active</h4>
-              <p style={{ fontSize: 12, margin: "0 0 5px 0" }}>Name: <strong>{currentSessionVolunteer?.name}</strong></p>
-              <p style={{ fontSize: 12, margin: "0 0 15px 0" }}>Email: <strong>{currentSessionVolunteer?.email}</strong></p>
-              <button onClick={handleVolunteerReset} style={{ background: "none", border: "1px solid #16a34a", color: "#16a34a", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11 }}>Add New</button>
-            </div>
-          )}
+         {!volunteerSubmitted ? (
+  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    
+    {/* Name */}
+    <input
+      type="text"
+      placeholder="Full Name"
+      value={volunteerName}
+      onChange={(e) => setVolunteerName(e.target.value)}
+      style={{ width: "100%", padding: 9, borderRadius: 8, border: "1px solid #cbd5e1", fontFamily: GLOBAL_FONT, boxSizing: "border-box" }}
+    />
+
+    {/* Email */}
+    <input
+      type="email"
+      placeholder="Email Address"
+      value={volunteerEmail}
+      onChange={(e) => setVolunteerEmail(e.target.value)}
+      style={{ width: "100%", padding: 9, borderRadius: 8, border: "1px solid #cbd5e1", fontFamily: GLOBAL_FONT, boxSizing: "border-box" }}
+    />
+
+    {/* Location dropdown */}
+    <select
+      value={volunteerLocation}
+      onChange={(e) => setVolunteerLocation(e.target.value)}
+      style={{ width: "100%", padding: 9, borderRadius: 8, border: "1px solid #cbd5e1", fontFamily: GLOBAL_FONT, background: "#fff", color: volunteerLocation ? "#0f172a" : "#94a3b8" }}
+    >
+      <option value="" disabled>📍 Select Location</option>
+      {LOCATION_OPTIONS.map(loc => (
+        <option key={loc} value={loc}>{loc}</option>
+      ))}
+    </select>
+
+    {/* Skills multi-select */}
+    <div style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 12px", background: "#fff" }}>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+        Skills (select all that apply)
+      </div>
+      {SKILL_OPTIONS.map(skill => (
+        <label key={skill} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer", fontSize: 12, color: "#334155" }}>
+          <input
+            type="checkbox"
+            checked={volunteerSkills.includes(skill)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setVolunteerSkills(prev => [...prev, skill]);
+              } else {
+                setVolunteerSkills(prev => prev.filter(s => s !== skill));
+              }
+            }}
+            style={{ accentColor: "#16a34a", width: 14, height: 14 }}
+          />
+          {skill}
+        </label>
+      ))}
+    </div>
+
+    {volunteerError && <div style={{ color: "#ef4444", fontSize: 11 }}>{volunteerError}</div>}
+
+    <button
+      onClick={handleVolunteerSubmit}
+      disabled={volunteerLoading}
+      style={{ background: "#16a34a", color: "#fff", border: "none", padding: 11, borderRadius: 8, fontWeight: 700, cursor: "pointer", fontFamily: GLOBAL_FONT }}
+    >
+      {volunteerLoading ? "Registering..." : "Register as Volunteer"}
+    </button>
+  </div>
+) : (
+  <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10, padding: 18, textAlign: "center" }}>
+    <h4 style={{ color: "#15803d", fontSize: 14, margin: "0 0 10px 0" }}>Session Active ✅</h4>
+    <p style={{ fontSize: 12, margin: "0 0 4px 0" }}>Name: <strong>{currentSessionVolunteer?.name}</strong></p>
+    <p style={{ fontSize: 12, margin: "0 0 4px 0" }}>Location: <strong>{currentSessionVolunteer?.location}</strong></p>
+    <p style={{ fontSize: 12, margin: "0 0 4px 0" }}>Email: <strong>{currentSessionVolunteer?.email}</strong></p>
+    <p style={{ fontSize: 12, margin: "0 0 15px 0", color: "#64748b" }}>
+      Skills: {currentSessionVolunteer?.skills}
+    </p>
+    <button
+      onClick={handleVolunteerReset}
+      style={{ background: "none", border: "1px solid #16a34a", color: "#16a34a", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11 }}
+    >
+      Add New
+    </button>
+  </div>
+)}
         </div>
       </div>
       {showForm && <EmergencyForm onClose={() => setShowForm(false)} />}
