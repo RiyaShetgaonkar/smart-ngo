@@ -165,3 +165,4 @@ export default function EmergencyForm({ onClose }) {
 const labelStyle = { fontSize: 11, fontWeight: 600, color: "#555", display: "block", marginBottom: 4 };
 const inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, marginBottom: 12, boxSizing: "border-box" };
 
+
